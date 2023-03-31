@@ -35,7 +35,7 @@ with st.expander("1 Download Met Data From Iowa State Mesonet",expanded=True):
         st.download_button(
            "Press to Download",
            data,
-           "file.csv",
+           f'{station}_{startts}0000_{endts}0000.csv',
            "text/csv",
            key='download-csv'
         )
