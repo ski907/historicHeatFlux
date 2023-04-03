@@ -67,7 +67,8 @@ with st.expander("4 Calculate Heat Fluxes", expanded=False):
     b = st.number_input('b', value=10 ** -6, format='%e')
     c = st.number_input('c', value=1.0, format='%f')
     R = st.number_input('R', value=1.0, format='%f')
-
+    documentation_url = 'https://github.com/ski907/historicHeatFlux/blob/master/heatflux%20documentation.pdf'
+    st.write("More info on heatflux calculations [here](%s)" % documentation_url)
     if st.button('Calculate Heat Fluxes'):
         q_sw, q_atm, q_b, q_l, q_h, q_net = calc_fluxes(st.session_state['df'], T_water_C, lat, lon, a, b, c, R)
         st.session_state['energy_df'] = build_energy_df(q_sw, q_atm, q_b, q_l, q_h)
