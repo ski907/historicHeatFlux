@@ -20,6 +20,7 @@ import pandas as pd
 def st_make_metar_dataframe(df):
     return make_metar_dataframe(df)
 
+
 @st.cache_data
 def convert_df(df):
     return df.to_csv(index=True).encode('utf-8')
@@ -62,10 +63,10 @@ with st.expander("4 Calculate Heat Fluxes", expanded=False):
     lat = st.number_input('Latitude', value=41.1242)
     lon = st.number_input('Longitude', value=-101.3644337)
     st.write('Wind Function Variables:')
-    a = st.number_input('a', value=10 ** -6,format='%e')
-    b = st.number_input('b', value=10 ** -6,format='%e')
-    c = st.number_input('c', value=1.0,format='%f')
-    R = st.number_input('R', value=1.0,format='%f')
+    a = st.number_input('a', value=10 ** -6, format='%e')
+    b = st.number_input('b', value=10 ** -6, format='%e')
+    c = st.number_input('c', value=1.0, format='%f')
+    R = st.number_input('R', value=1.0, format='%f')
 
     if st.button('Calculate Heat Fluxes'):
         q_sw, q_atm, q_b, q_l, q_h, q_net = calc_fluxes(st.session_state['df'], T_water_C, lat, lon, a, b, c, R)
@@ -82,11 +83,9 @@ with st.expander("4 Calculate Heat Fluxes", expanded=False):
             key='download-csv'
         )
 
-
-
-
-
 with st.expander("5 Plot Results", expanded=True):
+    st.write('This may take a very long time if the data is more than a 60 days long. We recommend downloading the '
+             'output file and plotting externally for longer datasets.')
     if st.button('Plot Results'):
         fig = plot_forecast_heat_fluxes(st.session_state.energy_df)
         st.write(fig)
