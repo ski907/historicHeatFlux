@@ -7,12 +7,12 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-def get_metar(station,startts,endts):
+def get_metar(station, startts, endts):
     ###This is a slightly modified version of an example from the Iowa State Mesonet page
-    #https://mesonet.agron.iastate.edu/request/download.phtml?network=NE_ASOS
-    #https://github.com/akrherz/iem/blob/main/scripts/asos/iem_scraper_example.py
+    # https://mesonet.agron.iastate.edu/request/download.phtml?network=NE_ASOS
+    # https://github.com/akrherz/iem/blob/main/scripts/asos/iem_scraper_example.py
 
-    #expects dates like 19990201 for 2 Feb 1999
+    # expects dates like 19990201 for 2 Feb 1999
     startts = datetime.datetime.strptime(startts, '%Y%m%d')
     endts = datetime.datetime.strptime(endts, '%Y%m%d')
 
@@ -21,13 +21,12 @@ def get_metar(station,startts,endts):
     service += startts.strftime("year1=%Y&month1=%m&day1=%d&")
     service += endts.strftime("year2=%Y&month2=%m&day2=%d&")
 
-
-
     uri = "%s&station=%s" % (service, station)
     print("Downloading: %s" % (station,))
     data = ia.download_data(uri)
 
     return data
+
 
 def make_metar_dataframe(df):
     df2 = pd.DataFrame()
@@ -56,15 +55,18 @@ def make_metar_dataframe(df):
     df2 = df2.tz_localize(tz=tz)
     return df2
 
+
 def get_elevation(lat, lon):
     url = f'https://api.opentopodata.org/v1/ned10m?locations={lat},{lon}'
     result = requests.get(url)
     return result.json()['results'][0]['elevation']
 
+
 def get_solar(lat, lon, elevation, site_name, times, tz):
     site = Location(lat, lon, tz, elevation, site_name)
     cs = site.get_clearsky(times)
     return cs
+
 
 def calc_solar(q0_a_t, R, Cl):
     # function to calculate solar net solar radition into water using attenuated solar if available
@@ -72,6 +74,7 @@ def calc_solar(q0_a_t, R, Cl):
     # Cl is cloudiness %
     q_sw = q0_a_t * (1 - R) * (1 - 0.65 * Cl ** 2)
     return q_sw
+
 
 def calc_downwelling_LW(T_air, Cl):
     Tak = T_air + 273.15
@@ -94,6 +97,7 @@ def calc_upwelling_LW(T_water):
 def calc_wind_function(a, b, c, R, U):
     return R * (a + b * U ** c)
 
+
 def calc_latent_heat(P, T_water, RH, f_U):
     Twk = T_water + 273.15
     Lv = 2.500 * 10 ** 6 - 2.386 * 10 ** 3 * (T_water)
@@ -101,8 +105,8 @@ def calc_latent_heat(P, T_water, RH, f_U):
     # saturated vapor pressure at water temperature (mb), which is a function of water temperature from Zhang and Johnson 2016
     # Zhang, Z. and Johnson, B.E., 2016. Aquatic nutrient simulation modules (NSMs) developed for hydrologic and hydraulic models.
     es = 6984.505294 + Twk * (-188.903931 + Twk * (2.133357675 + Twk * (-1.28858097 * 10 ** -2 + Twk * (
-                4.393587233 * 10 ** -5 + Twk * (-8.023923082 * 10 ** -8 + Twk * 6.136820929 * 10 ** -11)))))
-    ea = RH/100 * es
+            4.393587233 * 10 ** -5 + Twk * (-8.023923082 * 10 ** -8 + Twk * 6.136820929 * 10 ** -11)))))
+    ea = RH / 100 * es
     ql = 0.622 / P * Lv * rho_w * (es - ea) * f_U
     return ql
 
@@ -114,9 +118,9 @@ def calc_sensible_heat(T_air, f_U, T_water):
     return qh
 
 
-def calc_fluxes(df, T_water_C, lat, lon):
+def calc_fluxes(df, T_water_C, lat, lon, a=10 ** -6, b=10 ** -6, c=1, R=1):
     # calc solar input
-    #times = pd.date_range(start=df.index.min(), end=df.index.max(), freq='1H')
+    # times = pd.date_range(start=df.index.min(), end=df.index.max(), freq='1H')
     times = df.index
     elevation = get_elevation(lat, lon)
 
@@ -125,9 +129,9 @@ def calc_fluxes(df, T_water_C, lat, lon):
     ghi = get_solar(lat, lon, elevation, site_name, times, tz).ghi
 
     # calculate effects of clouds on shortwave
-    R = 0.15  # Maidment et al. (1996) Handbook of Hydrology
+    solar_R = 0.15  # Maidment et al. (1996) Handbook of Hydrology
     Cl = df['cloudiness']
-    q_sw = calc_solar(ghi, R, Cl)
+    q_sw = calc_solar(ghi, solar_R, Cl)
 
     # calc longwave down
     T_air_C = df['air_temperature_C']
@@ -137,10 +141,10 @@ def calc_fluxes(df, T_water_C, lat, lon):
     q_b = calc_upwelling_LW(T_water_C)
 
     # calc wind function
-    a = 10 ** -6
-    b = 10 ** -6
-    c = 1
-    R = 1
+    # a = 10 ** -6
+    # b = 10 ** -6
+    # c = 1
+    # R = 1
 
     U = df['wind_speed_ms']
     f_U = calc_wind_function(a, b, c, R, U)
@@ -157,6 +161,7 @@ def calc_fluxes(df, T_water_C, lat, lon):
     q_net = q_sw + q_atm - q_b + q_h - q_l
 
     return q_sw, q_atm, q_b, q_l, q_h, q_net
+
 
 def build_energy_df(q_sw, q_atm, q_b, q_l, q_h):
     energy_df = pd.DataFrame(
