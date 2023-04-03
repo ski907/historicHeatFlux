@@ -36,6 +36,8 @@ def make_metar_dataframe(df):
     df2['atmospheric_pressure_mb'] = df.alti * 33.8639
     df2['air_temperature_F'] = df.tmpf
     df2['air_temperature_C'] = (df.tmpf - 32) * 5 / 9
+    df2['dewpoint_F'] = df.dwpf
+    df2['dewpoint_C'] = (df.dwpf - 32) * 5 / 9
     df2['humidity_%RH'] = df.relh
     df2['wind_speed_ms'] = df.sknt * 0.51  # 0.51 m/s per knot
     df2['wind_direction_deg_from_N'] = df.drct
@@ -98,7 +100,7 @@ def calc_wind_function(a, b, c, R, U):
     return R * (a + b * U ** c)
 
 
-def calc_latent_heat(P, T_water, RH, f_U):
+def calc_latent_heat(P, T_water, ea, f_U):
     Twk = T_water + 273.15
     Lv = 2.500 * 10 ** 6 - 2.386 * 10 ** 3 * (T_water)
     rho_w = 1000  # kg/m3
@@ -106,7 +108,6 @@ def calc_latent_heat(P, T_water, RH, f_U):
     # Zhang, Z. and Johnson, B.E., 2016. Aquatic nutrient simulation modules (NSMs) developed for hydrologic and hydraulic models.
     es = 6984.505294 + Twk * (-188.903931 + Twk * (2.133357675 + Twk * (-1.28858097 * 10 ** -2 + Twk * (
             4.393587233 * 10 ** -5 + Twk * (-8.023923082 * 10 ** -8 + Twk * 6.136820929 * 10 ** -11)))))
-    ea = RH / 100 * es
     ql = 0.622 / P * Lv * rho_w * (es - ea) * f_U
     return ql
 
@@ -117,6 +118,8 @@ def calc_sensible_heat(T_air, f_U, T_water):
     qh = Cp * rho_w * (T_air - T_water) * f_U
     return qh
 
+def calc_vapor_pressure(T_dewpoint):
+    return 6.11 * 10 ** (7.5 * T_dewpoint / (237.3 + T_dewpoint))
 
 def calc_fluxes(df, T_water_C, lat, lon, a=10 ** -6, b=10 ** -6, c=1, R=1):
     # calc solar input
@@ -151,8 +154,11 @@ def calc_fluxes(df, T_water_C, lat, lon, a=10 ** -6, b=10 ** -6, c=1, R=1):
 
     # calc latent heat
     relative_humidity = df['humidity_%RH']
-    P = df['atmospheric_pressure_mb']  # mb don't have a forecast for this, but heat flux not that sensitive to it
-    q_l = calc_latent_heat(P, T_water_C, relative_humidity, f_U)
+    T_dewpoint_C = df['dewpoint_C']
+    ea = calc_vapor_pressure(T_dewpoint_C)
+    P = df['atmospheric_pressure_mb']
+
+    q_l = calc_latent_heat(P, T_water_C, ea, f_U)
 
     # calc sensible heat
     q_h = calc_sensible_heat(T_air_C, f_U, T_water_C)

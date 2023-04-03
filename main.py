@@ -16,7 +16,7 @@ from utils import get_metar, make_metar_dataframe, calc_fluxes, build_energy_df,
 import pandas as pd
 
 
-@st.cache_data
+#@st.cache_data
 def st_make_metar_dataframe(df):
     return make_metar_dataframe(df)
 
