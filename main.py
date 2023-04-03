@@ -12,7 +12,7 @@
 # --
 
 import streamlit as st
-from utils import get_metar, make_metar_dataframe, calc_fluxes, build_energy_df, plot_forecast_heat_fluxes
+from utils import get_metar, make_metar_dataframe, calc_fluxes, build_energy_df, plot_forecast_heat_fluxes, return_lat_lon
 import pandas as pd
 
 
@@ -59,9 +59,14 @@ with st.expander("3 Process Met Data into Heat Flux Model inputs", expanded=True
 
 with st.expander("4 Calculate Heat Fluxes", expanded=False):
     T_water_C = st.number_input('Average Water Temperature (C)', value=3)
-    st.write('Enter lat/lon location to calculate elevation and solar input')
-    lat = st.number_input('Latitude', value=41.1242)
-    lon = st.number_input('Longitude', value=-101.3644337)
+    st.write('Enter lat/lon location to calculate elevation and solar input. Location will default to airport location.')
+    if 'df' in st.session_state.keys():
+        airport_lat, airport_lon = return_lat_lon(st.session_state['df'])
+    else:
+        airport_lat = 0
+        airport_lon = 0
+    lat = st.number_input('Latitude', value=airport_lat)
+    lon = st.number_input('Longitude', value=airport_lon)
     st.write('Wind Function Variables:')
     a = st.number_input('a', value=10 ** -6, format='%e')
     b = st.number_input('b', value=10 ** -6, format='%e')

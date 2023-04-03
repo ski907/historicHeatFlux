@@ -32,6 +32,8 @@ def make_metar_dataframe(df):
     df2 = pd.DataFrame()
     df2['date'] = df.valid
     df2['date'] = pd.to_datetime(df2.date)
+    df2['lat'] = df.lat
+    df2['lon'] = df.lon
     df2['atmospheric_pressure_inHg'] = df.alti
     df2['atmospheric_pressure_mb'] = df.alti * 33.8639
     df2['air_temperature_F'] = df.tmpf
@@ -168,12 +170,18 @@ def calc_fluxes(df, T_water_C, lat, lon, a=10 ** -6, b=10 ** -6, c=1, R=1):
 
     return q_sw, q_atm, q_b, q_l, q_h, q_net
 
+def return_lat_lon(df):
+    lat = df.lat[0]
+    lon = df.lon[0]
+    return lat, lon
 
 def build_energy_df(q_sw, q_atm, q_b, q_l, q_h):
     energy_df = pd.DataFrame(
         {'downwelling SW': q_sw, 'downwelling LW': q_atm, 'upwelling LW': -q_b, 'sensible heat': q_h,
          'latent heat': -q_l})
     energy_df['net flux'] = energy_df.sum(axis=1)
+    #remove rows with missing data
+    energy_df = energy_df.dropna()
     return energy_df
 
 
