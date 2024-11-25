@@ -57,6 +57,16 @@ with st.expander("3 Process Met Data into Heat Flux Model inputs", expanded=True
         st.session_state['df'] = st_make_metar_dataframe(st.session_state.raw_df)
         st.write(st.session_state['df'])
 
+        met_data = convert_df(st.session_state['df'])
+
+        st.download_button(
+            "Press to Download",
+            met_data,
+            "met_data.csv",
+            "text/csv",
+            key='download-csv'
+        )       
+
 with st.expander("4 Calculate Heat Fluxes", expanded=False):
     T_water_C = st.number_input('Average Water Temperature (C)', value=3)
     st.write('Enter lat/lon location to calculate elevation and solar input. Location will default to airport location.')
