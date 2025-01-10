@@ -5,6 +5,9 @@ import requests
 from pvlib.location import Location
 import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 
 def get_metar(station, startts, endts):
@@ -123,6 +126,108 @@ def calc_sensible_heat(T_air, f_U, T_water):
 def calc_vapor_pressure(T_dewpoint):
     return 6.11 * 10 ** (7.5 * T_dewpoint / (237.3 + T_dewpoint))
 
+
+
+def plot_met(df):
+    """
+    Creates a series of subplots, each showing one of the meteorological variables
+    over the same x-axis (date) using Plotly.
+    """
+    df = df[~df.index.duplicated(keep='first')]
+    
+    fig = make_subplots(
+        rows=6, cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.02,
+        subplot_titles=(
+            'Air Temperature (°C)',
+            'Relative Humidity (%)',
+            'Dewpoint (°C)',
+            'Atmospheric Pressure (mb)',
+            'Cloudiness',
+            'Windspeed (m/s)'
+        )
+    )
+    
+    fig.add_trace(
+        go.Scatter(x=df.index, y=df['air_temperature_C'], mode='lines', line=dict(color='red')),
+        row=1, col=1
+    )
+    
+    fig.add_trace(
+        go.Scatter(x=df.index, y=df['humidity_%RH'], mode='lines', line=dict(color='blue')),
+        row=2, col=1
+    )
+    
+    fig.add_trace(
+        go.Scatter(x=df.index, y=df['dewpoint_C'], mode='lines', line=dict(color='green')),
+        row=3, col=1
+    )
+    
+    fig.add_trace(
+        go.Scatter(x=df.index, y=df['atmospheric_pressure_mb'], mode='lines', line=dict(color='orange')),
+        row=4, col=1
+    )
+    
+    fig.add_trace(
+        go.Scatter(x=df.index, y=df['cloudiness'], mode='lines', line=dict(color='purple')),
+        row=5, col=1
+    )
+    
+    fig.add_trace(
+        go.Scatter(x=df.index, y=df['wind_speed_ms'], mode='lines', line=dict(color='brown')),
+        row=6, col=1
+    )
+    
+    fig.update_layout(height=1200, showlegend=True)
+    return fig
+
+
+# def plot_met(df):
+#     """
+#     Creates a series of subplots, each showing one of the meteorological variables
+#     over the same x-axis (date).
+#     """
+#     df = df[~df.index.duplicated(keep='first')]
+#     # Extract each series
+#     T_air_C = df['air_temperature_C']
+#     relative_humidity = df['humidity_%RH']
+#     T_dewpoint_C = df['dewpoint_C']
+#     P = df['atmospheric_pressure_mb']
+#     Cl = df['cloudiness']
+#     U = df['wind_speed_ms']
+
+#     # Create a figure with 5 rows of subplots
+#     fig, axes = plt.subplots(nrows=6, ncols=1, figsize=(12, 8), sharex=True)
+
+#     # 1) Air Temperature
+#     sns.lineplot(x=df.index, y=T_air_C, ax=axes[0], color='red')
+#     axes[0].set_title('Air Temperature (°C)')
+
+#     # 2) Relative Humidity
+#     sns.lineplot(x=df.index, y=relative_humidity, ax=axes[1], color='blue')
+#     axes[1].set_title('Relative Humidity (%)')
+
+#     # 3) Dewpoint
+#     sns.lineplot(x=df.index, y=T_dewpoint_C, ax=axes[2], color='green')
+#     axes[2].set_title('Dewpoint (°C)')
+
+#     # 4) Atmospheric Pressure
+#     sns.lineplot(x=df.index, y=P, ax=axes[3], color='orange')
+#     axes[3].set_title('Atmospheric Pressure (mb)')
+
+#     # 5) Cloudiness
+#     sns.lineplot(x=df.index, y=Cl, ax=axes[4], color='purple')
+#     axes[4].set_title('Cloudiness')
+
+#     # 6) Wind Speed
+#     sns.lineplot(x=df.index, y=U, ax=axes[5], color='brown')
+#     axes[5].set_title('Windspeed (m/s)')   
+
+#     # Improve spacing
+#     plt.tight_layout()
+#     return fig
+
 def calc_fluxes(df, T_water_C, lat, lon, a=10 ** -6, b=10 ** -6, c=1, R=1):
     # calc solar input
     # times = pd.date_range(start=df.index.min(), end=df.index.max(), freq='1H')
@@ -185,10 +290,61 @@ def build_energy_df(q_sw, q_atm, q_b, q_l, q_h):
     return energy_df
 
 
-def plot_forecast_heat_fluxes(energy_df):
-    energy_df = pd.melt(energy_df.reset_index(), id_vars='date')
-    fig, ax = plt.subplots(figsize=(15, 5))
-    ax = sns.lineplot(data=energy_df, x="date", y="value", hue='variable')
-    plt.ylabel('Heat Flux (W/m2)', fontsize=12)
-    plt.xlabel('')
+# def plot_forecast_heat_fluxes(energy_df):
+#     energy_df = pd.melt(energy_df.reset_index(), id_vars='date')
+#     fig, ax = plt.subplots(figsize=(15, 5))
+#     ax = sns.lineplot(data=energy_df, x="date", y="value", hue='variable')
+#     plt.ylabel('Heat Flux (W/m2)', fontsize=12)
+#     plt.xlabel('')
+#     return fig
+
+
+def plot_historic_heat_fluxes(energy_df):
+    """
+    Create an interactive Plotly line plot of heat fluxes, highlighting 'net flux'
+    in bold black.
+    """
+    # Convert wide DataFrame to long-form
+    energy_long = pd.melt(energy_df.reset_index(), id_vars='date')
+
+    # Create the Plotly Express line chart
+    fig = px.line(
+        energy_long,
+        x='date',
+        y='value',
+        color='variable',
+        # color_discrete_sequence=px.colors.qualitative.Bold,
+        # If you want consistent coloring per variable, you could specify a dict:
+        color_discrete_map={
+            'downwelling SW': 'blue',
+            'downwelling LW': 'orange',
+            'upwelling LW': 'green',
+            'sensible heat': 'red',
+            'latent heat': 'purple',
+            'net flux': 'black'
+        },
+    )
+
+    # Make the 'net flux' line thicker and black
+    for trace in fig.data:
+        if trace.name == 'net flux':
+            trace.line.width = 3
+            trace.line.color = 'black'
+        else:
+            # Optionally make other lines thinner or semi-transparent
+            trace.line.width = 2
+            trace.opacity = 0.8
+
+    # Customize layout
+    fig.update_layout(
+        title='Forecast Heat Fluxes',
+        xaxis_title='',
+        yaxis_title='Heat Flux (W/m²)',
+        legend_title_text='Flux Type',
+        template='plotly_white'
+    )
+
+    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
+    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
+    
     return fig
