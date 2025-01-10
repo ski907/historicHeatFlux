@@ -37,9 +37,9 @@ def st_make_metar_dataframe(df):
 def convert_df(df):
     return df.to_csv(index=True).encode('utf-8')
 
-st.set_page_config(layout="wide")
+st.set_page_config(page_title="Historic Modeled Heat Flux", layout="wide")
 
-st.title("Historic Heat Flux Calculation Tool - 10 Day Lookback")
+st.title("Historic Modeled Heat Flux Calculation Tool - 10 Day Lookback")
 
 st.markdown("""
 Enter the **airport code** below and press **Go** to retrieve, process, and visualize the heat flux data for the past 10 days.
@@ -85,13 +85,13 @@ if st.button("Go"):
             # st.write(energy_df)
 
             # Step 6: Plot Heat Flux Results
-            st.subheader("Heat Flux Results Plots")
+            st.subheader("Modeled Heat Flux Results Plots")
             fig_flux = plot_historic_heat_fluxes(energy_df)
             st.plotly_chart(fig_flux, use_container_width=True)
             #st.pyplot(fig_flux)
 
             # Step 4: Plot Meteorological Data
-            st.subheader("Meteorological Data Plots")
+            st.subheader("Meteorological Data Plots - Decoded from")
             fig_met = plot_met(processed_df)
             st.plotly_chart(fig_met, use_container_width=True)
 

@@ -126,63 +126,85 @@ def calc_sensible_heat(T_air, f_U, T_water):
 def calc_vapor_pressure(T_dewpoint):
     return 6.11 * 10 ** (7.5 * T_dewpoint / (237.3 + T_dewpoint))
 
-
-
 def plot_met(df):
-    """
-    Creates a series of subplots, each showing one of the meteorological variables
-    over the same x-axis (date) using Plotly.
-    """
+    # Prepare the data for plotting
     df = df[~df.index.duplicated(keep='first')]
+    df_met = df[['air_temperature_C', 'humidity_%RH', 'dewpoint_C', 
+                'atmospheric_pressure_mb', 'cloudiness', 'wind_speed_ms']]
+    
+    df_met = pd.melt(df_met.reset_index(), id_vars=df_met.index.name or 'date', 
+                     var_name='variable', value_name='value')
+    df_met = df_met.rename(columns={'index': 'date'})
+    
+    # Create a Plotly figure
+    variables = df_met['variable'].unique()
+    colors = {
+        'air_temperature_C': 'red',
+        'humidity_%RH': 'blue',
+        'dewpoint_C': 'green',
+        'atmospheric_pressure_mb': 'orange',
+        'cloudiness': 'purple',
+        'wind_speed_ms': 'brown'
+    }
     
     fig = make_subplots(
-        rows=6, cols=1,
+        rows=len(variables),
+        cols=1,
         shared_xaxes=True,
-        vertical_spacing=0.02,
-        subplot_titles=(
-            'Air Temperature (°C)',
-            'Relative Humidity (%)',
-            'Dewpoint (°C)',
-            'Atmospheric Pressure (mb)',
-            'Cloudiness',
-            'Windspeed (m/s)'
+        vertical_spacing=0.08,
+        subplot_titles=variables
+    )
+    
+    for i, var in enumerate(variables, start=1):
+        subset = df_met[df_met['variable'] == var]
+        fig.add_trace(
+            go.Scatter(
+                x=subset['date'], 
+                y=subset['value'], 
+                mode='lines', 
+                name=var, 
+                line=dict(color=colors.get(var, 'black')),
+                connectgaps=True
+            ),
+            row=i,
+            col=1
         )
+        
+        fig.add_shape(
+            type='rect',
+            xref='x domain', x0=0, x1=1,
+            yref='y domain', y0=0, y1=1,
+            line=dict(color='black', width=2),
+            row=i, col=1
+        )
+        
+        if var == "air_temperature_C":
+            fig.add_hline(
+                y=0,
+                line_color="black",
+                row=i,
+                col=1
+            )
+    
+    # Update layout
+    fig.update_layout(
+        height=300 * len(variables),
+        title="Meteorological Data",
+        showlegend=False,
+        template="plotly_white",
+        font=dict(color='black'),
+        title_font=dict(color='black', size=16)
     )
     
-    fig.add_trace(
-        go.Scatter(x=df.index, y=df['air_temperature_C'], mode='lines', line=dict(color='red')),
-        row=1, col=1
-    )
+    fig.update_xaxes(title_text="Date", row=len(variables), col=1)
     
-    fig.add_trace(
-        go.Scatter(x=df.index, y=df['humidity_%RH'], mode='lines', line=dict(color='blue')),
-        row=2, col=1
-    )
+    for i in range(1, len(variables) + 1):
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='lightgray', row=i, col=1)
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgray', row=i, col=1)
+        fig.update_xaxes(tickfont=dict(color='black'), title_font=dict(color='black'), row=i, col=1)
+        fig.update_yaxes(tickfont=dict(color='black'), title_font=dict(color='black'), row=i, col=1)
     
-    fig.add_trace(
-        go.Scatter(x=df.index, y=df['dewpoint_C'], mode='lines', line=dict(color='green')),
-        row=3, col=1
-    )
-    
-    fig.add_trace(
-        go.Scatter(x=df.index, y=df['atmospheric_pressure_mb'], mode='lines', line=dict(color='orange')),
-        row=4, col=1
-    )
-    
-    fig.add_trace(
-        go.Scatter(x=df.index, y=df['cloudiness'], mode='lines', line=dict(color='purple')),
-        row=5, col=1
-    )
-    
-    fig.add_trace(
-        go.Scatter(x=df.index, y=df['wind_speed_ms'], mode='lines', line=dict(color='brown')),
-        row=6, col=1
-    )
-    
-    fig.update_layout(height=1200, showlegend=True)
     return fig
-
-
 # def plot_met(df):
 #     """
 #     Creates a series of subplots, each showing one of the meteorological variables
@@ -337,9 +359,9 @@ def plot_historic_heat_fluxes(energy_df):
 
     # Customize layout
     fig.update_layout(
-        title='Forecast Heat Fluxes',
+        title='Energy Fluxes',
         xaxis_title='',
-        yaxis_title='Heat Flux (W/m²)',
+        yaxis_title='Energy Flux (W/m²)',
         legend_title_text='Flux Type',
         template='plotly_white'
     )
