@@ -39,7 +39,7 @@ def convert_df(df):
 
 st.set_page_config(page_title="Historic Modeled Heat Flux", layout="wide")
 
-st.title("Historic Modeled Heat Flux Calculation Tool - 10 Day Lookback")
+st.title("Historic Modeled Heat Flux Calculation Tool - Variable Lookback")
 
 st.markdown("""
 Enter the **airport code** below and press **Go** to retrieve, process, and visualize the heat flux data for the past 10 days.
@@ -52,11 +52,13 @@ airport_code = st.text_input(
 
 T_water_C = st.number_input('water temperature (C)', value=2)
 
+lookback_days = st.number_input('Time Period to Look Back (days)', value=10)
+
 if st.button("Go"):
     with st.spinner("Processing..."):
         try:
             # Step 1: Calculate Date Range
-            startts, endts = get_lookback_dates(days=10)
+            startts, endts = get_lookback_dates(days=lookback_days)
             st.write(f"**Date Range:** {startts} to {endts}")
 
             # Step 2: Download METAR Data

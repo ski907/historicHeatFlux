@@ -111,7 +111,7 @@ def make_metar_dataframe_local(df):
         # except Exception as e:
         #     # In case of any error, return UTC time
         #     return row['date_utc']
-    
+    print(timezone_str)
     df2 = df2.tz_convert(tz=timezone_str)
     return df2
 
