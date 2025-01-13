@@ -8,6 +8,8 @@ import seaborn as sns
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from timezonefinder import TimezoneFinder
+import pytz
 
 
 def get_metar(station, startts, endts):
@@ -62,6 +64,56 @@ def make_metar_dataframe(df):
     df2 = df2.tz_localize(tz=tz)
     return df2
 
+def make_metar_dataframe_local(df):
+    # Initialize the TimezoneFinder
+    tf = TimezoneFinder()
+    
+    # Create a new DataFrame with required columns
+    df2 = pd.DataFrame()
+    df2['date'] = df.valid
+    df2['date'] = pd.to_datetime(df2.date)
+    df2['lat'] = df.lat
+    df2['lon'] = df.lon
+    df2['atmospheric_pressure_inHg'] = df.alti
+    df2['atmospheric_pressure_mb'] = df.alti * 33.8639
+    df2['air_temperature_F'] = df.tmpf
+    df2['air_temperature_C'] = (df.tmpf - 32) * 5 / 9
+    df2['dewpoint_F'] = df.dwpf
+    df2['dewpoint_C'] = (df.dwpf - 32) * 5 / 9
+    df2['humidity_%RH'] = df.relh
+    df2['wind_speed_ms'] = df.sknt * 0.51  # 0.51 m/s per knot
+    df2['wind_direction_deg_from_N'] = df.drct
+    df2 = df2.set_index(df2.date)
+    df2 = df2.drop(['date'], axis=1)
+
+    # get cloudiness
+    cloud_dict = {'CLR': 0, 'SKC': 0, 'FEW': 1.5 / 8, 'SCT': 3.5 / 8, 'BKN': 6 / 8, 'OVC': 8 / 8}
+    df = df.set_index(pd.to_datetime(df.valid))
+    df2['cloudiness'] = pd.concat(
+        [df.skyc1.map(cloud_dict),
+         df.skyc2.map(cloud_dict),
+         df.skyc3.map(cloud_dict),
+         df.skyc4.map(cloud_dict)], axis=1).max(axis=1)
+
+    tz = 'Etc/UTC'
+    df2 = df2.tz_localize(tz=tz)
+    
+    # Function to convert UTC to local time based on lat/lon
+    timezone_str = tf.timezone_at(lat=df.lat[0],lng=df.lon[0])
+    if timezone_str is None:
+        # Fallback if timezone_at fails
+        timezone_str = tf.certain_timezone_at(lat=df.lat[0],lng=df.lon[0])
+    if timezone_str is None:
+        # If still None, default to UTC
+        timezone_str = 'Etc/UTC'
+        #    local_tz = pytz.timezone(timezone_str)
+        #     return row['date_utc'].astimezone(local_tz)
+        # except Exception as e:
+        #     # In case of any error, return UTC time
+        #     return row['date_utc']
+    
+    df2 = df2.tz_convert(tz=timezone_str)
+    return df2
 
 def get_elevation(lat, lon):
     url = f'https://api.opentopodata.org/v1/ned10m?locations={lat},{lon}'
@@ -205,50 +257,6 @@ def plot_met(df):
         fig.update_yaxes(tickfont=dict(color='black'), title_font=dict(color='black'), row=i, col=1)
     
     return fig
-# def plot_met(df):
-#     """
-#     Creates a series of subplots, each showing one of the meteorological variables
-#     over the same x-axis (date).
-#     """
-#     df = df[~df.index.duplicated(keep='first')]
-#     # Extract each series
-#     T_air_C = df['air_temperature_C']
-#     relative_humidity = df['humidity_%RH']
-#     T_dewpoint_C = df['dewpoint_C']
-#     P = df['atmospheric_pressure_mb']
-#     Cl = df['cloudiness']
-#     U = df['wind_speed_ms']
-
-#     # Create a figure with 5 rows of subplots
-#     fig, axes = plt.subplots(nrows=6, ncols=1, figsize=(12, 8), sharex=True)
-
-#     # 1) Air Temperature
-#     sns.lineplot(x=df.index, y=T_air_C, ax=axes[0], color='red')
-#     axes[0].set_title('Air Temperature (°C)')
-
-#     # 2) Relative Humidity
-#     sns.lineplot(x=df.index, y=relative_humidity, ax=axes[1], color='blue')
-#     axes[1].set_title('Relative Humidity (%)')
-
-#     # 3) Dewpoint
-#     sns.lineplot(x=df.index, y=T_dewpoint_C, ax=axes[2], color='green')
-#     axes[2].set_title('Dewpoint (°C)')
-
-#     # 4) Atmospheric Pressure
-#     sns.lineplot(x=df.index, y=P, ax=axes[3], color='orange')
-#     axes[3].set_title('Atmospheric Pressure (mb)')
-
-#     # 5) Cloudiness
-#     sns.lineplot(x=df.index, y=Cl, ax=axes[4], color='purple')
-#     axes[4].set_title('Cloudiness')
-
-#     # 6) Wind Speed
-#     sns.lineplot(x=df.index, y=U, ax=axes[5], color='brown')
-#     axes[5].set_title('Windspeed (m/s)')   
-
-#     # Improve spacing
-#     plt.tight_layout()
-#     return fig
 
 def calc_fluxes(df, T_water_C, lat, lon, a=10 ** -6, b=10 ** -6, c=1, R=1):
     # calc solar input
@@ -310,16 +318,6 @@ def build_energy_df(q_sw, q_atm, q_b, q_l, q_h):
     #remove rows with missing data
     energy_df = energy_df.dropna()
     return energy_df
-
-
-# def plot_forecast_heat_fluxes(energy_df):
-#     energy_df = pd.melt(energy_df.reset_index(), id_vars='date')
-#     fig, ax = plt.subplots(figsize=(15, 5))
-#     ax = sns.lineplot(data=energy_df, x="date", y="value", hue='variable')
-#     plt.ylabel('Heat Flux (W/m2)', fontsize=12)
-#     plt.xlabel('')
-#     return fig
-
 
 def plot_historic_heat_fluxes(energy_df):
     """

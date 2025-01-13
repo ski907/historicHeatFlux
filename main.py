@@ -11,7 +11,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from utils import (
     get_metar,
-    make_metar_dataframe,
+    make_metar_dataframe_local,
     calc_fluxes,
     build_energy_df,
     return_lat_lon,
@@ -31,7 +31,7 @@ def get_lookback_dates(days=10):
 # Cache the data processing to improve performance
 @st.cache_data
 def st_make_metar_dataframe(df):
-    return make_metar_dataframe(df)
+    return make_metar_dataframe_local(df)
 
 @st.cache_data
 def convert_df(df):
