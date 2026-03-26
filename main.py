@@ -92,6 +92,28 @@ if st.button("Go"):
             st.plotly_chart(fig_flux, use_container_width=True)
             #st.pyplot(fig_flux)
 
+            # Download button for energy flux CSV
+            tz_label = str(energy_df.index.tz) if energy_df.index.tz else 'UTC'
+            flux_export = energy_df.rename(columns={
+                'downwelling SW': 'Downwelling Shortwave Radiation (W/m^2)',
+                'downwelling LW': 'Downwelling Longwave Radiation (W/m^2)',
+                'upwelling LW': 'Upwelling Longwave Radiation (W/m^2)',
+                'sensible heat': 'Sensible Heat Flux (W/m^2)',
+                'latent heat': 'Latent Heat Flux (W/m^2)',
+                'net flux': 'Net Heat Flux (W/m^2)',
+            }).rename_axis(f'datetime ({tz_label})')
+            flux_export.index = flux_export.index.tz_localize(None)
+            flux_export = flux_export.round(4)
+            date_start = flux_export.index.min().strftime("%Y%m%d")
+            date_end = flux_export.index.max().strftime("%Y%m%d")
+            flux_csv = flux_export.to_csv().encode('utf-8-sig')
+            st.download_button(
+                label="Download Energy Flux Data as CSV",
+                data=flux_csv,
+                file_name=f"{airport_code}_energy_flux_{date_start}_{date_end}.csv",
+                mime="text/csv",
+            )
+
             # Step 4: Plot Meteorological Data
             st.subheader("Meteorological Data Plots - Decoded from")
             fig_met = plot_met(processed_df)
